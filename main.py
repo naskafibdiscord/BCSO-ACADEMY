@@ -718,7 +718,6 @@ async def send_recruitment_form(channel, user):
 # ---------- Système MP d'Annonce PA (/mp_pa) ----------
 class TimeSelect(discord.ui.Select):
     def __init__(self):
-        # Génération des créneaux de 15 minutes entre 20h00 et 23h45
         times = []
         for h in range(20, 24):
             for m in (0, 15, 30, 45):
@@ -757,14 +756,13 @@ class TimeSelect(discord.ui.Select):
         success = 0
         failed = 0
 
-        # Envoi à tous les membres non-bots
         for member in guild.members:
             if member.bot:
                 continue
             try:
                 await member.send(message_text)
                 success += 1
-                await asyncio.sleep(0.5) # Anti rate-limit de Discord
+                await asyncio.sleep(0.5)
             except Exception:
                 failed += 1
 
@@ -800,6 +798,7 @@ class MyBot(discord.Client):
         self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self):
+        # Enregistrement des commandes slash
         self.tree.add_command(TicketConfig())
         self.tree.add_command(ReponseConfig())
         self.tree.add_command(reponse)
@@ -807,10 +806,8 @@ class MyBot(discord.Client):
         self.tree.add_command(unblacklist)
         self.tree.add_command(blacklist_liste)
         self.tree.add_command(mp_pa)
-        
-        await self.tree.sync()
-        print("✅ Commandes slash synchronisées.")
 
+        # Enregistrement des vues persistantes (boutons / menus)
         self.add_view(CloseView())
         db = load()
         for guild_id_str in db:
@@ -823,6 +820,20 @@ class MyBot(discord.Client):
 
     async def on_ready(self):
         print(f"🤖 Connecté en tant que {self.user} (ID: {self.user.id})")
+        
+        # --- SYNCHRONISATION INSTANTANÉE DES COMMANDES ---
+        # Remplace l'ID ci-dessous par l'ID de ton serveur Discord pour forcer l'affichage immédiat
+        MY_GUILD = discord.Object(id=1557438305480605747) # ⚠️ Mets ton ID de serveur ici
+        
+        try:
+            self.tree.copy_global_to(guild=MY_GUILD)
+            await self.tree.sync(guild=MY_GUILD)
+            print("✅ Commandes slash synchronisées instantanément sur le serveur de test.")
+        except Exception as e:
+            print(f"⚠️ Erreur lors de la synchronisation de la guilde : {e}")
+            # Solution de repli globale si la synchronisation de guilde échoue
+            await self.tree.sync()
+            print("✅ Commandes slash synchronisées globalement.")
 
     async def on_member_join(self, member):
         g = get_guild(member.guild.id)
