@@ -715,6 +715,81 @@ async def send_recruitment_form(channel, user):
     for emb in embeds:
         await channel.send(embed=emb)
 
+# ---------- Système MP d'Annonce PA (/mp_pa) ----------
+class TimeSelect(discord.ui.Select):
+    def __init__(self):
+        # Génération des créneaux de 15 minutes entre 20h00 et 23h45
+        times = []
+        for h in range(20, 24):
+            for m in (0, 15, 30, 45):
+                times.append(f"{h:02d}h{m:02d}")
+
+        options = [discord.SelectOption(label=t, value=t) for t in times]
+        super().__init__(placeholder="⏰ Choisissez l'heure du rendez-vous", options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        selected_time = self.values[0]
+        await interaction.response.send_message(
+            f"🚀 Envoi des MP en cours pour l'horaire : **{selected_time}**...",
+            ephemeral=True
+        )
+
+        message_text = (
+            f"🚨 **[BCSO] RECRUTEMENT OUVERT — BCSO ACADEMY (PA)** 🚨\n\n"
+            f"📢 **RENDEZ-VOUS CE SOIR À {selected_time} AU POSTE DU BCSO (SANDY SHORES)** 📢\n\n"
+            f"*« To Protect and to Serve » — Servir et protéger le Comté de Blaine*\n\n"
+            f"Vous avez le sens du devoir, de la justice et de l'esprit d'équipe ? Le Blaine County Sheriff's Office ouvre les portes de son académie de police pour former la prochaine génération d'adjoints du Sheriff !\n\n"
+            f"📅 **Rendez-vous & Inscriptions :**\n"
+            f"- 🏢 **Lieu :** Poste du BCSO de Sandy Shores\n"
+            f"- 🕗 **Heure :** Ce soir à {selected_time}\n\n"
+            f"📋 **Profil recherché :**\n"
+            f"- ⚖️ **Rigueur & Discipline :** Savoir garder son calme et respecter la chaîne de commandement.\n"
+            f"- 🚗 **Conduite & Sécurité :** Être titulaire du permis de conduire.\n"
+            f"- 📜 **Casier judiciaire :** Vierge de toute condamnation grave.\n"
+            f"- 🗣️ **Communication :** Être capable de s'exprimer clairement et avec sang-froid en toutes situations.\n\n"
+            f"📝 **Comment postuler ?**\n"
+            f"1. **Déposez votre dossier sur Discord :** Ouvrez un ticket dans la section dédiée sur le Discord BCSO ACADEMY.\n"
+            f"2. **Attendez la validation :** Vérifiez si votre candidature est acceptée ou refusée.\n"
+            f"3. **Entretien oral :** Si votre candidature est acceptée, rendez-vous à l'heure et au lieu indiqués ci-dessus pour passer votre entretien oral avec la Supervision."
+        )
+
+        guild = interaction.guild
+        success = 0
+        failed = 0
+
+        # Envoi à tous les membres non-bots
+        for member in guild.members:
+            if member.bot:
+                continue
+            try:
+                await member.send(message_text)
+                success += 1
+                await asyncio.sleep(0.5) # Anti rate-limit de Discord
+            except Exception:
+                failed += 1
+
+        await interaction.followup.send(
+            f"✅ **Annonce envoyée !**\n"
+            f"• **Envoyés avec succès :** {success}\n"
+            f"• **Bloqués/Échecs (MP fermés) :** {failed}",
+            ephemeral=True
+        )
+
+class TimeView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=180)
+        self.add_item(TimeSelect())
+
+@app_commands.command(name="mp_pa", description="Envoyer le message de recrutement PA à tous les membres en MP")
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def mp_pa(interaction: discord.Interaction):
+    await interaction.response.send_message(
+        "🕒 **Sélectionnez l'heure de l'événement** dans le menu déroulant ci-dessous :",
+        view=TimeView(),
+        ephemeral=True
+    )
+
 # ---------- Configuration du Bot ----------
 class MyBot(discord.Client):
     def __init__(self):
@@ -731,6 +806,7 @@ class MyBot(discord.Client):
         self.tree.add_command(blacklist)
         self.tree.add_command(unblacklist)
         self.tree.add_command(blacklist_liste)
+        self.tree.add_command(mp_pa)
         
         await self.tree.sync()
         print("✅ Commandes slash synchronisées.")
